@@ -67,8 +67,4 @@ class DonationResponseViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(donation)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
-    # @action(detail=False, methods=['get'])
-    # def history(self, request):
-    #     donations = DonationResponse.objects.filter(donor=request.user)
-    #     serializer = self.get_serializer(donations, many=True)
-    #     return Response(serializer.data)
+    
