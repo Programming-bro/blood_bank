@@ -32,6 +32,7 @@ class DonorProfileSerializer(serializers.ModelSerializer):
             'address',
             'last_donation_date',
             'is_available',
+            'is_premium',
             'blood_group',
             'donation_history'
         ]
