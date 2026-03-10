@@ -1,27 +1,21 @@
 
-from rest_framework import viewsets
+from rest_framework import viewsets, filters
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .models import DonorProfile, Transaction
 from .serializers import DonorProfileSerializer, DonorListSerializer
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters
 from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import status
-from sslcommerz_lib import SSLCOMMERZ
 from django.http import HttpResponseRedirect
 from django.conf import settings as main_settings
-import uuid
 from django.views.decorators.csrf import csrf_exempt
-import requests
-import json
 from urllib import request as urllib_request, parse
 from django.contrib.auth import get_user_model
+import json
+import uuid
 
 User = get_user_model()
-
-
 
 class DonorProfileViewSet(viewsets.ModelViewSet):
     queryset = DonorProfile.objects.all()
@@ -102,25 +96,20 @@ class DonorProfileViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-
-# ১. পেমেন্ট শুরু করার ফাংশন
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def initiate_payment(request):
     user = request.user
-    
-    # স্যান্ডবক্স ডিটেইলস
     store_id = 'redhe69af5f627dc67'
     store_pass = 'redhe69af5f627dc67@ssl'
     api_url = "https://sandbox.sslcommerz.com/gwprocess/v4/api.php"
     
-    # ইউনিক ট্রানজ্যাকশন আইডি (ইউজারের আইডি সহ যাতে পরে চেনা যায়)
     tran_id = f"USER_{user.id}_{uuid.uuid4().hex[:6].upper()}"
     
     post_body = {
         'store_id': store_id,
         'store_passwd': store_pass,
-        'total_amount': "100.00",
+        'total_amount': "1000.00",
         'currency': "BDT",
         'tran_id': tran_id,
         'success_url': f"{main_settings.BACKEND_URL}/api/v1/payment/success/",
@@ -153,35 +142,26 @@ def initiate_payment(request):
         return Response({'error': str(e)}, status=500)
 
 
-
-
-
-# ২. পেমেন্ট সফল হওয়ার ফাংশন
 @csrf_exempt
 @api_view(['POST'])
 def payment_success(request):
     data = request.POST
-    tran_id = data.get('tran_id') # যেমন: USER_5_A1B2C3
-    
-    # ১. ট্রানজ্যাকশন আইডি থেকে ইউজার আইডি আলাদা করা
+    tran_id = data.get('tran_id') 
+
     try:
-        user_id = tran_id.split('_')[1] # '5' বের করে আনবে
+        user_id = tran_id.split('_')[1] 
         user = User.objects.get(id=user_id)
-        
-        # ২. ইউজারের প্রোফাইল আপডেট করা
-        # (যদি UserProfile মডেলে is_premium ফিল্ড থাকে)
         profile, created = DonorProfile.objects.get_or_create(user=user)
         profile.is_premium = True
         profile.save()
         
         print(f"Success! {user.email} is now a Premium User.")
-        
-        # ৩. ইউজারকে ফ্রন্টএন্ডের প্রোফাইল পেজে রিডাইরেক্ট করা
         return HttpResponseRedirect(f"{main_settings.FRONTEND_URL}/profile?payment=success")
         
     except Exception as e:
         print(f"Error updating profile: {str(e)}")
         return HttpResponseRedirect(f"{main_settings.FRONTEND_URL}/profile?payment=failed")
+    
 @api_view(['POST'])
 def payment_cancel(request):
     return HttpResponseRedirect(f"{main_settings.FRONTEND_URL}/profile")
